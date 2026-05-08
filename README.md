@@ -4,7 +4,7 @@ Discord.js v14 기반 유키하 티켓봇입니다.
 
 ## 기능
 
-- `/티켓설정` : 티켓 패널 생성
+- `/티켓설정` : 티켓 패널 생성 및 관리자 역할/티켓 카테고리/로그 채널 지정
 - `/티켓관리` : 열린 티켓 목록 확인
 - 버튼으로 티켓 생성
 - 모달로 문의 내용 입력
@@ -62,8 +62,18 @@ Node.js 20 이상 서버에서 사용하세요.
 
 - Startup command: `npm start`
 - Install command: `npm install`
-- Deploy command는 콘솔에서 최초 1회 `npm run deploy`
+- 최초 1회 콘솔에서 `npm run deploy`
 
 ## 환경변수
 
-`.env.example`을 보고 Dishost 환경변수에 그대로 등록하면 됩니다.
+Dishost 환경변수에는 아래 4개만 넣으면 됩니다.
+
+```env
+DISCORD_TOKEN=봇토큰
+CLIENT_ID=애플리케이션ID
+GUILD_ID=서버ID
+MONGODB_URI=몽고DB주소
+```
+
+관리자 역할, 티켓 카테고리, 로그 채널은 `.env`에 넣지 않습니다.
+디스코드 서버에서 `/티켓설정` 명령어로 지정하세요.
