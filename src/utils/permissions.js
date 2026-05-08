@@ -1,13 +1,12 @@
 import { PermissionFlagsBits } from 'discord.js';
-import { config } from '../config.js';
 import { GuildSettings } from '../models.js';
 
 export async function getGuildSettings(guildId) {
   const saved = await GuildSettings.findOne({ guildId });
   return {
-    staffRoleIds: saved?.staffRoleIds?.length ? saved.staffRoleIds : config.staffRoleIds,
-    ticketCategoryId: saved?.ticketCategoryId || config.ticketCategoryId,
-    logChannelId: saved?.logChannelId || config.ticketLogChannelId,
+    staffRoleIds: saved?.staffRoleIds?.length ? saved.staffRoleIds : [],
+    ticketCategoryId: saved?.ticketCategoryId || null,
+    logChannelId: saved?.logChannelId || null,
     panelChannelId: saved?.panelChannelId || null,
   };
 }
@@ -19,7 +18,7 @@ export async function isTicketStaff(member) {
   return settings.staffRoleIds.some((roleId) => member.roles.cache.has(roleId));
 }
 
-export function buildTicketPermissionOverwrites(guild, ownerId, staffRoleIds) {
+export function buildTicketPermissionOverwrites(guild, ownerId, staffRoleIds = []) {
   const overwrites = [
     {
       id: guild.roles.everyone.id,
