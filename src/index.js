@@ -1,4 +1,4 @@
-import { Client, Collection, GatewayIntentBits, Partials } from 'discord.js';
+import { Client, Collection, Events, GatewayIntentBits, Partials } from 'discord.js';
 import { commands } from './commands/index.js';
 import { config, validateConfig } from './config.js';
 import { connectDatabase } from './database.js';
@@ -23,8 +23,24 @@ for (const command of commands) {
   client.commands.set(command.data.name, command);
 }
 
-client.once('ready', () => handleReady(client));
-client.on('interactionCreate', (interaction) => handleInteraction(interaction, client.commands));
+client.once(Events.ClientReady, () => handleReady(client));
+client.on(Events.InteractionCreate, (interaction) => handleInteraction(interaction, client.commands));
+
+client.on('shardDisconnect', (event, shardId) => {
+  console.warn(`[Discord] Shard ${shardId} disconnected. code=${event?.code ?? 'unknown'} reason=${event?.reason ?? 'unknown'}`);
+});
+
+client.on('shardReconnecting', (shardId) => {
+  console.warn(`[Discord] Shard ${shardId} reconnecting...`);
+});
+
+client.on('error', (error) => {
+  console.error('[Discord Client Error]', error);
+});
+
+client.on('warn', (warning) => {
+  console.warn('[Discord Client Warning]', warning);
+});
 
 process.on('unhandledRejection', (error) => console.error('[UnhandledRejection]', error));
 process.on('uncaughtException', (error) => console.error('[UncaughtException]', error));
