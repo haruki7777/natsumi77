@@ -29,6 +29,7 @@ export const customIds = {
   ticketSelect: 'yukiha_ticket_select',
   ticketModalPrefix: 'yukiha_ticket_modal:',
   ticketReasonInput: 'yukiha_ticket_reason',
+  saveTicket: 'yukiha_ticket_save',
   closeTicket: 'yukiha_ticket_close',
   reopenTicket: 'yukiha_ticket_reopen',
   deleteTicket: 'yukiha_ticket_delete',
