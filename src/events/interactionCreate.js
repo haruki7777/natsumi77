@@ -11,6 +11,7 @@ import { Ticket } from '../models.js';
 import { buildClosedTicketButtons, buildOpenTicketButtons } from '../utils/ticketComponents.js';
 import { buildTicketPermissionOverwrites, getGuildSettings, isTicketStaff } from '../utils/permissions.js';
 import { createTranscriptAttachment } from '../utils/transcript.js';
+import { createTextTranscriptAttachment } from '../utils/textTranscript.js';
 
 function cleanChannelName(text) {
   return text
@@ -110,6 +111,27 @@ async function createTicketFromModal(interaction, categoryKey) {
   }
 
   await interaction.reply({ content: `✅ 티켓 생성 완료: ${channel}`, ephemeral: true });
+}
+
+async function saveTicket(interaction) {
+  const ticket = await Ticket.findOne({ channelId: interaction.channelId, guildId: interaction.guildId });
+  if (!ticket) return interaction.reply({ content: '여긴 티켓 채널이 아닌 것 같아.', ephemeral: true });
+
+  if (!(await isTicketStaff(interaction.member))) {
+    return interaction.reply({ content: '저장 버튼은 관리자만 누를 수 있어. 중요한 기록이니까 아무나 안 돼 😤', ephemeral: true });
+  }
+
+  await interaction.deferReply({ ephemeral: true });
+  const file = await createTextTranscriptAttachment(interaction.channel);
+
+  await interaction.editReply({
+    content: [
+      '💾 티켓 대화 내용을 텍스트 파일로 저장했어.',
+      `티켓 주인: <@${ticket.ownerId}>`,
+      '파일 안에는 시간, 닉네임, 계정명, 유저ID, 메시지 내용이 들어가 있어.',
+    ].join('\n'),
+    files: [file],
+  });
 }
 
 async function closeTicket(interaction) {
@@ -253,6 +275,7 @@ export async function handleInteraction(interaction, commands) {
     }
 
     if (interaction.isButton()) {
+      if (interaction.customId === customIds.saveTicket) return saveTicket(interaction);
       if (interaction.customId === customIds.closeTicket) return closeTicket(interaction);
       if (interaction.customId === customIds.reopenTicket) return reopenTicket(interaction);
       if (interaction.customId === customIds.deleteTicket) return deleteTicket(interaction);
