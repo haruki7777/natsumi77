@@ -26,6 +26,11 @@ export function buildOpenTicketButtons() {
   return [
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
+        .setCustomId(customIds.saveTicket)
+        .setLabel('저장')
+        .setEmoji('💾')
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
         .setCustomId(customIds.closeTicket)
         .setLabel('티켓 닫기')
         .setEmoji('🔒')
@@ -37,6 +42,11 @@ export function buildOpenTicketButtons() {
 export function buildClosedTicketButtons() {
   return [
     new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(customIds.saveTicket)
+        .setLabel('저장')
+        .setEmoji('💾')
+        .setStyle(ButtonStyle.Primary),
       new ButtonBuilder()
         .setCustomId(customIds.reopenTicket)
         .setLabel('다시 열기')
