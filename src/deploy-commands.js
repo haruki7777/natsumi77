@@ -1,15 +1,12 @@
 import { REST, Routes } from 'discord.js';
-import { commands } from './commands/index.js';
 import { config, validateConfig } from './config.js';
 
 validateConfig();
 
 const rest = new REST({ version: '10' }).setToken(config.token);
-const body = commands.map((command) => command.data.toJSON());
 
-console.log(`[DEPLOY] ${body.length}개 전역 명령어 등록 중...`);
-
-await rest.put(Routes.applicationCommands(config.clientId), { body });
-
-console.log('[DEPLOY] 전역 슬래시 명령어 등록 완료');
-console.log('[DEPLOY] 전역 명령어는 디스코드 반영까지 몇 분 걸릴 수 있습니다.');
+console.log('[CLEANUP] 전역 슬래시 명령어 삭제 중...');
+await rest.put(Routes.applicationCommands(config.clientId), { body: [] });
+console.log('[CLEANUP] 전역 슬래시 명령어 삭제 완료');
+console.log('[INFO] 이제 명령어는 봇 시작 시 각 서버에 서버별 커맨드로 자동 등록됩니다.');
+console.log('[INFO] Discord 클라이언트 캐시 때문에 기존 명령어가 몇 분 정도 더 보일 수 있습니다.');
