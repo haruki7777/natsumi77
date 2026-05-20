@@ -6,9 +6,11 @@ import { AttachmentBuilder } from 'discord.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 let fontReady = false;
+let activeFontFamily = 'Arial';
 
-const FONT_FAMILY = 'dalmoori';
-const FONT_STACK = `${FONT_FAMILY}, Arial, sans-serif`;
+function fontStack() {
+  return `${activeFontFamily}, Arial, sans-serif`;
+}
 
 async function loadCanvas() {
   try {
@@ -20,10 +22,32 @@ async function loadCanvas() {
   }
 }
 
+function findFirstExisting(paths) {
+  return paths.find((candidate) => fs.existsSync(candidate));
+}
+
+function findNotoSansKrFont() {
+  const baseDirs = [
+    path.resolve(process.cwd(), 'node_modules/@fontsource/noto-sans-kr/files'),
+    path.resolve(__dirname, '../../node_modules/@fontsource/noto-sans-kr/files'),
+  ];
+
+  for (const baseDir of baseDirs) {
+    if (!fs.existsSync(baseDir)) continue;
+    const files = fs.readdirSync(baseDir);
+    const preferred = files.find((file) => file.includes('korean') && file.includes('400-normal') && file.endsWith('.woff2'))
+      || files.find((file) => file.includes('korean') && file.endsWith('.woff2'))
+      || files.find((file) => file.endsWith('.woff2'));
+    if (preferred) return path.join(baseDir, preferred);
+  }
+
+  return null;
+}
+
 function registerKoreanFont(GlobalFonts) {
   if (fontReady || !GlobalFonts) return;
 
-  const candidates = [
+  const dalmooriCandidates = [
     path.resolve(__dirname, '../assets/fonts/dalmoori.ttf'),
     path.resolve(__dirname, '../assets/fonts/Dalmoori.ttf'),
     path.resolve(__dirname, '../assets/fonts/dalmoori.woff2'),
@@ -38,15 +62,25 @@ function registerKoreanFont(GlobalFonts) {
     path.resolve(process.cwd(), 'Dalmoori.woff2'),
   ];
 
-  const fontPath = candidates.find((candidate) => fs.existsSync(candidate));
-  if (!fontPath) {
-    console.warn('[FONT] 한글 폰트를 찾지 못했습니다. /home/container/assets/fonts/dalmoori.ttf 로 업로드하세요.');
+  const dalmooriPath = findFirstExisting(dalmooriCandidates);
+  if (dalmooriPath) {
+    const ok = GlobalFonts.registerFromPath(dalmooriPath, 'dalmoori');
+    activeFontFamily = 'dalmoori';
+    console.log(ok ? `[FONT] dalmoori 한글 폰트 등록 완료: ${dalmooriPath}` : `[FONT] dalmoori 한글 폰트 등록 실패: ${dalmooriPath}`);
     fontReady = true;
     return;
   }
 
-  const ok = GlobalFonts.registerFromPath(fontPath, FONT_FAMILY);
-  console.log(ok ? `[FONT] dalmoori 한글 폰트 등록 완료: ${fontPath}` : `[FONT] dalmoori 한글 폰트 등록 실패: ${fontPath}`);
+  const notoPath = findNotoSansKrFont();
+  if (notoPath) {
+    const ok = GlobalFonts.registerFromPath(notoPath, 'NotoSansKR');
+    activeFontFamily = 'NotoSansKR';
+    console.log(ok ? `[FONT] NotoSansKR 한글 폰트 등록 완료: ${notoPath}` : `[FONT] NotoSansKR 한글 폰트 등록 실패: ${notoPath}`);
+    fontReady = true;
+    return;
+  }
+
+  console.warn('[FONT] 한글 폰트를 찾지 못했습니다. npm install 후 재시작하거나 assets/fonts/dalmoori.ttf 를 업로드하세요.');
   fontReady = true;
 }
 
@@ -61,7 +95,7 @@ function roundRect(ctx, x, y, w, h, r) {
 }
 
 function setFont(ctx, size = 26) {
-  ctx.font = `${size}px ${FONT_STACK}`;
+  ctx.font = `${size}px ${fontStack()}`;
 }
 
 function text(ctx, value, x, y, size = 26, color = '#172033', strength = 1, maxWidth = undefined) {
