@@ -18,13 +18,14 @@ export async function sendWelcome(member, options = {}) {
 
   const title = applyPlaceholders(settings.welcomeTitle, member, member.guild);
   const description = applyPlaceholders(settings.welcomeDescription, member, member.guild);
-  const image = createWelcomeCard({ member, guild: member.guild, title, description });
+  const image = await createWelcomeCard({ member, guild: member.guild, title, description });
+  const imageName = image.name || 'yukiha-welcome.png';
 
   const embed = new EmbedBuilder()
     .setColor(0x9ddcff)
     .setTitle(title)
     .setDescription(description)
-    .setImage('attachment://yukiha-welcome.png')
+    .setImage(`attachment://${imageName}`)
     .setFooter({ text: 'YUKIHA Welcome System ❄️' })
     .setTimestamp();
 
