@@ -23,6 +23,16 @@ const guildSettingsSchema = new mongoose.Schema(
     logChannelId: String,
     ticketCategoryId: String,
     staffRoleIds: [String],
+    welcomeChannelId: String,
+    welcomeRoleId: String,
+    welcomeTitle: { type: String, default: '어서 와요, {user}님 ❄️' },
+    welcomeDescription: {
+      type: String,
+      default: '유키하가 {server} 입장을 환영해요. 규칙을 확인하고 즐겁게 지내줘요.',
+    },
+    goodbyeChannelId: String,
+    goodbyeMessage: { type: String, default: '{user}님이 서버를 떠났어요.' },
+    modLogChannelId: String,
   },
   { timestamps: true }
 );
