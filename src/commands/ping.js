@@ -11,7 +11,7 @@ export const pingCommand = {
     await interaction.deferReply();
     const apiPing = Date.now() - startedAt;
     const clientPing = Math.max(0, Math.round(interaction.client.ws.ping));
-    const file = createPingCard({
+    const file = await createPingCard({
       clientPing,
       apiPing,
       guildCount: interaction.client.guilds.cache.size,
