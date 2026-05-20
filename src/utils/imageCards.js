@@ -7,8 +7,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 let fontReady = false;
 
-const FONT_FAMILY = 'Dalmoori';
-const FONT_STACK = `${FONT_FAMILY}, Noto Sans CJK KR, Noto Sans KR, Malgun Gothic, Arial, sans-serif`;
+const FONT_FAMILY = 'dalmoori';
+const FONT_STACK = `${FONT_FAMILY}, Arial, sans-serif`;
 
 async function loadCanvas() {
   try {
@@ -46,7 +46,7 @@ function registerKoreanFont(GlobalFonts) {
   }
 
   const ok = GlobalFonts.registerFromPath(fontPath, FONT_FAMILY);
-  console.log(ok ? `[FONT] 한글 폰트 등록 완료: ${fontPath}` : `[FONT] 한글 폰트 등록 실패: ${fontPath}`);
+  console.log(ok ? `[FONT] dalmoori 한글 폰트 등록 완료: ${fontPath}` : `[FONT] dalmoori 한글 폰트 등록 실패: ${fontPath}`);
   fontReady = true;
 }
 
