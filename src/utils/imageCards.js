@@ -4,49 +4,9 @@ async function loadCanvas() {
   try {
     const mod = await import('@napi-rs/canvas');
     return mod.createCanvas;
-  } catch {
-    return null;
+  } catch (error) {
+    throw new Error('이미지 카드용 패키지가 설치되지 않았습니다. Dishost 콘솔에서 npm install 을 실행한 뒤 재시작하세요.');
   }
-}
-
-function escapeXml(value = '') {
-  return String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&apos;');
-}
-
-function makeSvgAttachment(name, title, subtitle, rows) {
-  const rowSvg = rows
-    .map((row, index) => {
-      const x = 70 + index * 360;
-      return `
-      <rect x="${x}" y="230" width="320" height="200" rx="22" fill="rgba(10,15,32,0.72)" stroke="#1f2f5b" />
-      <text x="${x + 32}" y="285" font-size="24" font-weight="600" fill="#7f99b7">${escapeXml(row.label)}</text>
-      <text x="${x + 32}" y="350" font-size="42" font-weight="900" fill="${row.color}">${escapeXml(row.value)}</text>
-      <text x="${x + 32}" y="392" font-size="21" font-weight="500" fill="#596b88">${escapeXml(row.sub)}</text>`;
-    })
-    .join('\n');
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#050814"/>
-      <stop offset="0.55" stop-color="#0b1024"/>
-      <stop offset="1" stop-color="#101a35"/>
-    </linearGradient>
-  </defs>
-  <rect width="1200" height="520" fill="url(#bg)"/>
-  <rect x="28" y="28" width="1144" height="464" rx="24" fill="none" stroke="#173c7a" stroke-width="2"/>
-  <rect x="50" y="50" width="1100" height="140" rx="22" fill="rgba(13,20,42,0.88)" stroke="#164878"/>
-  <text x="80" y="105" font-family="sans-serif" font-size="34" font-weight="800" fill="#e8fbff">◇ ${escapeXml(title)}</text>
-  <text x="80" y="150" font-family="sans-serif" font-size="21" font-weight="500" fill="#7f99b7">${escapeXml(subtitle)}</text>
-  ${rowSvg}
-  </svg>`;
-
-  return new AttachmentBuilder(Buffer.from(svg, 'utf-8'), { name });
 }
 
 function roundRect(ctx, x, y, w, h, r) {
@@ -94,22 +54,18 @@ function drawBase(createCanvas, title, subtitle) {
 }
 
 export async function createPingCard({ clientPing, apiPing, guildCount, userTag }) {
-  const rows = [
-    { label: 'Discord 핑', value: `${clientPing}ms`, sub: 'WebSocket', color: '#f7e65d' },
-    { label: 'API 응답', value: `${apiPing}ms`, sub: 'Interaction', color: '#6df5b5' },
-    { label: '서버 수', value: `${guildCount}`, sub: 'Guilds', color: '#7eb6ff' },
-  ];
-
   const createCanvas = await loadCanvas();
-  if (!createCanvas) {
-    return makeSvgAttachment('yukiha-ping.svg', '유키하 네트워크 상태', '현재 연결 상태와 응답 속도를 확인했어요', rows);
-  }
-
   const { canvas, ctx } = drawBase(createCanvas, '유키하 네트워크 상태', '현재 연결 상태와 응답 속도를 확인했어요');
 
   const now = new Date().toLocaleString('ko-KR');
   text(ctx, userTag || 'YUKIHA', 945, 92, 18, '#44506c', '600');
   text(ctx, now, 795, 130, 20, '#39d7ff', '600');
+
+  const rows = [
+    { label: 'Discord 핑', value: `${clientPing}ms`, sub: 'WebSocket', color: '#f7e65d' },
+    { label: 'API 응답', value: `${apiPing}ms`, sub: 'Interaction', color: '#6df5b5' },
+    { label: '서버 수', value: `${guildCount}`, sub: 'Guilds', color: '#7eb6ff' },
+  ];
 
   for (let i = 0; i < rows.length; i += 1) {
     const row = rows[i];
@@ -129,19 +85,11 @@ export async function createPingCard({ clientPing, apiPing, guildCount, userTag 
 }
 
 export async function createWelcomeCard({ member, guild, title, description }) {
+  const createCanvas = await loadCanvas();
   const displayName = member?.displayName || member?.user?.username || '새로운 유저';
   const memberCount = guild?.memberCount || 0;
   const safeTitle = title || `어서 와요, ${displayName}님 ❄️`;
   const safeDesc = description || `${guild.name}에 온 걸 환영해요. 유키하가 지켜보고 있을게요.`;
-
-  const createCanvas = await loadCanvas();
-  if (!createCanvas) {
-    return makeSvgAttachment('yukiha-welcome.svg', '유키하 환영 인사', '새로운 멤버가 서버에 도착했어요', [
-      { label: '환영 대상', value: displayName.slice(0, 12), sub: safeTitle.slice(0, 28), color: '#65e6ff' },
-      { label: '서버 멤버', value: `${memberCount}명`, sub: guild?.name || 'Server', color: '#6df5b5' },
-      { label: '메시지', value: 'WELCOME', sub: safeDesc.slice(0, 28), color: '#f7e65d' },
-    ]);
-  }
 
   const { canvas, ctx } = drawBase(createCanvas, '유키하 환영 인사', '새로운 멤버가 서버에 도착했어요');
 
