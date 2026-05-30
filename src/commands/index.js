@@ -9,6 +9,7 @@ import { welcomeTestCommand } from './welcomeTest.js';
 import { adminSetupCommand } from './adminSetup.js';
 import { kickCommand } from './kick.js';
 import { banCommand } from './ban.js';
+import { syncCommandsCommand } from './syncCommands.js';
 
 const list = [];
 list.push(ticketSetupCommand);
@@ -22,5 +23,6 @@ list.push(welcomeTestCommand);
 list.push(adminSetupCommand);
 list.push(kickCommand);
 list.push(banCommand);
+list.push(syncCommandsCommand);
 
 export const commands = list;
