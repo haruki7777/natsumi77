@@ -8,6 +8,7 @@
     "start": "npm install --omit=dev && node src/index.js",
     "start:fast": "node src/index.js",
     "deploy": "node src/deploy-commands.js",
+    "ptero:list": "node scripts/list-ptero-servers.js",
     "dev": "node --watch src/index.js"
   },
   "dependencies": {
