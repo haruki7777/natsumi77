@@ -46,6 +46,7 @@ function getConfig() {
     downFailuresBeforeRestart: Number(
       process.env.MONITOR_DOWN_FAILURES_BEFORE_RESTART || DEFAULT_DOWN_FAILURES_BEFORE_RESTART
     ),
+    sendStartupOnline: String(process.env.MONITOR_SEND_STARTUP_ONLINE || 'false').toLowerCase() === 'true',
   };
 }
 
@@ -140,19 +141,19 @@ function createStatusEmbed(target, status, reason = null) {
 
   const embed = new EmbedBuilder()
     .setColor(isOnline ? 0x34c759 : 0xff3b30)
-    .setTitle(isOnline ? `✅ ${target.name} 복구 감지` : `🚨 ${target.name} 다운 감지`)
+    .setTitle(isOnline ? `✅ ${target.name} 서버 생존 확인` : `🚨 ${target.name} 다운 감지`)
     .setDescription(
       isOnline
-        ? `${target.name} 서버가 다시 응답하기 시작했어.`
+        ? `${target.name} 서버는 현재 정상적으로 살아있어. 응답 확인 완료!`
         : `${target.name} 서버가 응답하지 않아. 자동 복구를 시도할게.`
     )
     .addFields(
       { name: '대상', value: `\`${target.name}\``, inline: true },
-      { name: '주소', value: `\`${target.host}:${target.port}\``, inline: true },
-      { name: '상태', value: isOnline ? '`ONLINE`' : '`DOWN`', inline: true },
+      { name: '주소', value: '`보안상 숨김`', inline: true },
+      { name: '생존 상태', value: isOnline ? '`ALIVE / ONLINE`' : '`NO RESPONSE / DOWN`', inline: true },
       { name: '감지 시간', value: `\`${formatKoreanTime()}\``, inline: false }
     )
-    .setFooter({ text: 'YUKIHA Bot Monitor' })
+    .setFooter({ text: 'YUKIHA Bot Monitor · address hidden' })
     .setTimestamp();
 
   if (!isOnline) {
@@ -178,11 +179,11 @@ function createRestartEmbed(target, result) {
     )
     .addFields(
       { name: '대상', value: `\`${target.name}\``, inline: true },
-      { name: '주소', value: `\`${target.host}:${target.port}\``, inline: true },
+      { name: '주소', value: '`보안상 숨김`', inline: true },
       { name: '결과', value: `\`${result.reason || 'UNKNOWN'}\``, inline: true },
       { name: '요청 시간', value: `\`${formatKoreanTime()}\``, inline: false }
     )
-    .setFooter({ text: 'YUKIHA Auto Recovery' })
+    .setFooter({ text: 'YUKIHA Auto Recovery · address hidden' })
     .setTimestamp();
 
   if (result.detail) {
@@ -255,9 +256,9 @@ async function checkTarget(client, target) {
   );
 
   if (previous.status === null) {
-    if (currentStatus === 'down') {
+    if (currentStatus === 'down' || config.sendStartupOnline) {
       nextState.lastAlertAt = Date.now();
-      await sendStatusAlert(client, target, 'down', result.reason);
+      await sendStatusAlert(client, target, currentStatus, result.reason);
     }
 
     const restartedState = await maybeRestartTarget(client, target, nextState);
