@@ -12,7 +12,6 @@
     "dev": "node --watch src/index.js"
   },
   "dependencies": {
-    "@fontsource/noto-sans-kr": "^5.1.1",
     "discord.js": "^14.18.0",
     "dotenv": "^16.4.7",
     "mongoose": "^8.9.5"
