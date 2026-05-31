@@ -5,7 +5,7 @@
   "main": "src/index.js",
   "type": "module",
   "scripts": {
-    "start": "npm install --omit=dev && node src/index.js",
+    "start": "node src/index.js",
     "start:fast": "node src/index.js",
     "deploy": "node src/deploy-commands.js",
     "ptero:list": "node scripts/list-ptero-servers.js",
