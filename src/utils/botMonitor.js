@@ -47,14 +47,12 @@ function getConfig() {
       process.env.MONITOR_DOWN_FAILURES_BEFORE_RESTART || DEFAULT_DOWN_FAILURES_BEFORE_RESTART
     ),
     sendStartupOnline: String(process.env.MONITOR_SEND_STARTUP_ONLINE || 'false').toLowerCase() === 'true',
+    checkMode: String(process.env.MONITOR_CHECK_MODE || 'pterodactyl').toLowerCase(),
   };
 }
 
 function formatKoreanTime(date = new Date()) {
-  return date.toLocaleString('ko-KR', {
-    timeZone: 'Asia/Seoul',
-    hour12: false,
-  });
+  return date.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false });
 }
 
 function normalizePanelUrl(url) {
@@ -70,28 +68,70 @@ function checkTcpPort({ host, port }, timeoutMs) {
     const socket = new net.Socket();
     let settled = false;
 
-    const finish = (ok, reason = null) => {
+    const finish = (ok, reason = null, rawState = null) => {
       if (settled) return;
       settled = true;
       socket.destroy();
-      resolve({ ok, reason });
+      resolve({ ok, reason, rawState, source: 'tcp' });
     };
 
     socket.setTimeout(timeoutMs);
-    socket.once('connect', () => finish(true));
-    socket.once('timeout', () => finish(false, 'TIMEOUT'));
-    socket.once('error', (error) => finish(false, error.code || error.message || 'CONNECTION_ERROR'));
+    socket.once('connect', () => finish(true, 'TCP_OPEN', 'open'));
+    socket.once('timeout', () => finish(false, 'TIMEOUT', 'timeout'));
+    socket.once('error', (error) => finish(false, error.code || error.message || 'CONNECTION_ERROR', 'error'));
     socket.connect(port, host);
   });
 }
 
+async function checkPterodactylState(target) {
+  if (!hasPterodactylConfig(target)) {
+    return { ok: false, reason: 'PTERODACTYL_CONFIG_MISSING', rawState: 'missing_config', source: 'pterodactyl', allowRestart: false };
+  }
+
+  const endpoint = `${normalizePanelUrl(target.pteroUrl)}/api/client/servers/${target.pteroServerId}/resources`;
+  const response = await fetch(endpoint, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${target.pteroApiKey}`,
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    return {
+      ok: true,
+      reason: `PTERODACTYL_CHECK_FAILED_${response.status}`,
+      rawState: 'api_check_failed',
+      source: 'pterodactyl',
+      allowRestart: false,
+    };
+  }
+
+  const data = await response.json();
+  const currentState = data?.attributes?.current_state || 'unknown';
+
+  if (currentState === 'offline') {
+    return { ok: false, reason: 'PTERODACTYL_OFFLINE', rawState: currentState, source: 'pterodactyl', allowRestart: true };
+  }
+
+  if (currentState === 'running') {
+    return { ok: true, reason: 'PTERODACTYL_RUNNING', rawState: currentState, source: 'pterodactyl', allowRestart: false };
+  }
+
+  return { ok: true, reason: `PTERODACTYL_${String(currentState).toUpperCase()}`, rawState: currentState, source: 'pterodactyl', allowRestart: false };
+}
+
+async function checkTargetHealth(target, config) {
+  if (config.checkMode !== 'tcp' && hasPterodactylConfig(target)) {
+    return checkPterodactylState(target);
+  }
+  return checkTcpPort(target, config.timeoutMs);
+}
+
 async function restartPterodactylServer(target) {
   if (!hasPterodactylConfig(target)) {
-    return {
-      ok: false,
-      skipped: true,
-      reason: 'PTERODACTYL_CONFIG_MISSING',
-    };
+    return { ok: false, skipped: true, reason: 'PTERODACTYL_CONFIG_MISSING' };
   }
 
   const endpoint = `${normalizePanelUrl(target.pteroUrl)}/api/client/servers/${target.pteroServerId}/power`;
@@ -107,19 +147,10 @@ async function restartPterodactylServer(target) {
 
   if (!response.ok) {
     const body = await response.text().catch(() => '');
-    return {
-      ok: false,
-      skipped: false,
-      reason: `PTERODACTYL_${response.status}`,
-      detail: body.slice(0, 500),
-    };
+    return { ok: false, skipped: false, reason: `PTERODACTYL_${response.status}`, detail: body.slice(0, 500) };
   }
 
-  return {
-    ok: true,
-    skipped: false,
-    reason: 'RESTART_SENT',
-  };
+  return { ok: true, skipped: false, reason: 'RESTART_SENT' };
 }
 
 async function fetchAlertChannel(client, channelId) {
@@ -136,7 +167,7 @@ async function fetchAlertChannel(client, channelId) {
   return channel;
 }
 
-function createStatusEmbed(target, status, reason = null) {
+function createStatusEmbed(target, status, reason = null, rawState = null, source = 'unknown') {
   const isOnline = status === 'online';
 
   const embed = new EmbedBuilder()
@@ -144,13 +175,15 @@ function createStatusEmbed(target, status, reason = null) {
     .setTitle(isOnline ? `✅ ${target.name} 서버 생존 확인` : `🚨 ${target.name} 다운 감지`)
     .setDescription(
       isOnline
-        ? `${target.name} 서버는 현재 정상적으로 살아있어. 응답 확인 완료!`
+        ? `${target.name} 서버는 현재 정상적으로 살아있어. 상태 확인 완료!`
         : `${target.name} 서버가 응답하지 않아. 자동 복구를 시도할게.`
     )
     .addFields(
       { name: '대상', value: `\`${target.name}\``, inline: true },
       { name: '주소', value: '`보안상 숨김`', inline: true },
       { name: '생존 상태', value: isOnline ? '`ALIVE / ONLINE`' : '`NO RESPONSE / DOWN`', inline: true },
+      { name: '확인 방식', value: `\`${source}\``, inline: true },
+      { name: '패널 상태', value: `\`${rawState || 'unknown'}\``, inline: true },
       { name: '감지 시간', value: `\`${formatKoreanTime()}\``, inline: false }
     )
     .setFooter({ text: 'YUKIHA Bot Monitor · address hidden' })
@@ -197,22 +230,22 @@ async function sendEmbed(client, embed) {
   const { alertChannelId } = getConfig();
   const channel = await fetchAlertChannel(client, alertChannelId);
   if (!channel) return;
-
   await channel.send({ embeds: [embed] });
 }
 
-async function sendStatusAlert(client, target, status, reason) {
-  await sendEmbed(client, createStatusEmbed(target, status, reason));
+async function sendStatusAlert(client, target, status, result) {
+  await sendEmbed(client, createStatusEmbed(target, status, result.reason, result.rawState, result.source));
 }
 
 async function sendRestartAlert(client, target, result) {
   await sendEmbed(client, createRestartEmbed(target, result));
 }
 
-async function maybeRestartTarget(client, target, previous) {
+async function maybeRestartTarget(client, target, previous, result) {
   const config = getConfig();
 
   if (!config.restartEnabled) return previous;
+  if (result.allowRestart === false) return previous;
   if (previous.downCount < config.downFailuresBeforeRestart) return previous;
   if (Date.now() - previous.lastRestartAt < config.restartCooldownMs) return previous;
 
@@ -225,16 +258,12 @@ async function maybeRestartTarget(client, target, previous) {
   }));
 
   await sendRestartAlert(client, target, restartResult);
-
-  return {
-    ...previous,
-    lastRestartAt: Date.now(),
-  };
+  return { ...previous, lastRestartAt: Date.now() };
 }
 
 async function checkTarget(client, target) {
   const config = getConfig();
-  const result = await checkTcpPort(target, config.timeoutMs);
+  const result = await checkTargetHealth(target, config);
   const currentStatus = result.ok ? 'online' : 'down';
   const previous = states.get(target.key) || {
     status: null,
@@ -250,7 +279,7 @@ async function checkTarget(client, target) {
   };
 
   console.log(
-    `[MONITOR] ${target.name} ${target.host}:${target.port} => ${currentStatus}` +
+    `[MONITOR] ${target.name} source=${result.source} state=${result.rawState} => ${currentStatus}` +
       (result.reason ? ` (${result.reason})` : '') +
       ` downCount=${nextState.downCount}`
   );
@@ -258,20 +287,20 @@ async function checkTarget(client, target) {
   if (previous.status === null) {
     if (currentStatus === 'down' || config.sendStartupOnline) {
       nextState.lastAlertAt = Date.now();
-      await sendStatusAlert(client, target, currentStatus, result.reason);
+      await sendStatusAlert(client, target, currentStatus, result);
     }
 
-    const restartedState = await maybeRestartTarget(client, target, nextState);
+    const restartedState = await maybeRestartTarget(client, target, nextState, result);
     states.set(target.key, restartedState);
     return;
   }
 
   if (previous.status !== currentStatus) {
     nextState.lastAlertAt = Date.now();
-    await sendStatusAlert(client, target, currentStatus, result.reason);
+    await sendStatusAlert(client, target, currentStatus, result);
 
     const restartedState = currentStatus === 'down'
-      ? await maybeRestartTarget(client, target, nextState)
+      ? await maybeRestartTarget(client, target, nextState, result)
       : nextState;
 
     states.set(target.key, restartedState);
@@ -280,11 +309,11 @@ async function checkTarget(client, target) {
 
   if (currentStatus === 'down' && Date.now() - previous.lastAlertAt >= config.repeatAlertMs) {
     nextState.lastAlertAt = Date.now();
-    await sendStatusAlert(client, target, 'down', result.reason);
+    await sendStatusAlert(client, target, 'down', result);
   }
 
   const restartedState = currentStatus === 'down'
-    ? await maybeRestartTarget(client, target, nextState)
+    ? await maybeRestartTarget(client, target, nextState, result)
     : nextState;
 
   states.set(target.key, restartedState);
@@ -292,7 +321,6 @@ async function checkTarget(client, target) {
 
 async function runMonitorCycle(client) {
   const targets = readMonitorTargets();
-
   for (const target of targets) {
     await checkTarget(client, target).catch((error) => {
       console.error(`[MONITOR] ${target.name} check failed`, error);
@@ -310,11 +338,9 @@ export function startBotMonitor(client) {
   const config = getConfig();
   const targets = readMonitorTargets();
 
+  console.log(`[MONITOR] started: ${targets.map((target) => target.name).join(', ')}`);
   console.log(
-    `[MONITOR] started: ${targets.map((target) => `${target.name}(${target.host}:${target.port})`).join(', ')}`
-  );
-  console.log(
-    `[MONITOR] autoRestart=${config.restartEnabled} downFailuresBeforeRestart=${config.downFailuresBeforeRestart} cooldownMs=${config.restartCooldownMs}`
+    `[MONITOR] mode=${config.checkMode} autoRestart=${config.restartEnabled} downFailuresBeforeRestart=${config.downFailuresBeforeRestart} cooldownMs=${config.restartCooldownMs}`
   );
 
   setTimeout(() => {
