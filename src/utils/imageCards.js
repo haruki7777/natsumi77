@@ -1,196 +1,104 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { AttachmentBuilder } from 'discord.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-let fontReady = false;
-let activeFontFamily = 'Arial';
-
-function fontStack() {
-  return `${activeFontFamily}, Arial, sans-serif`;
+function escapeXml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }
 
-async function loadCanvas() {
-  try {
-    const mod = await import('@napi-rs/canvas');
-    registerKoreanFont(mod.GlobalFonts);
-    return mod.createCanvas;
-  } catch {
-    throw new Error('이미지 카드용 패키지가 설치되지 않았습니다. Dishost 콘솔에서 npm install 을 실행한 뒤 재시작하세요.');
-  }
+function trimText(value, max = 70) {
+  const text = String(value ?? '');
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
-function findFirstExisting(paths) {
-  return paths.find((candidate) => fs.existsSync(candidate));
+function baseCard({ title, subtitle, rightTop = '', rightBottom = '', body }) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="520" viewBox="0 0 1200 520" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fbfeff"/>
+      <stop offset="50%" stop-color="#eef9ff"/>
+      <stop offset="100%" stop-color="#e6f5ff"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#6ecbff" flood-opacity="0.18"/>
+    </filter>
+    <style>
+      .font { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', Arial, sans-serif; }
+      .title { font-size: 34px; font-weight: 800; fill: #102033; }
+      .subtitle { font-size: 22px; font-weight: 650; fill: #557089; }
+      .small { font-size: 20px; font-weight: 650; fill: #61768a; }
+      .label { font-size: 24px; font-weight: 800; fill: #30445a; }
+      .sub { font-size: 22px; font-weight: 650; fill: #70869a; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="520" fill="url(#bg)"/>
+  <rect x="28" y="28" width="1144" height="464" rx="28" fill="rgba(255,255,255,0.96)" stroke="#8bd5ff" stroke-width="3" filter="url(#shadow)"/>
+  <rect x="54" y="54" width="1092" height="142" rx="24" fill="#eaf8ff" stroke="#6ecbff" stroke-width="2"/>
+
+  <text class="font title" x="82" y="111">◇ ${escapeXml(title)}</text>
+  <text class="font subtitle" x="82" y="154">${escapeXml(subtitle)}</text>
+  ${rightTop ? `<text class="font small" x="930" y="96">${escapeXml(trimText(rightTop, 22))}</text>` : ''}
+  ${rightBottom ? `<text class="font small" x="795" y="132" fill="#00a6d6">${escapeXml(trimText(rightBottom, 32))}</text>` : ''}
+
+  ${body}
+</svg>`;
 }
 
-function findNotoSansKrFont() {
-  const baseDirs = [
-    path.resolve(process.cwd(), 'node_modules/@fontsource/noto-sans-kr/files'),
-    path.resolve(__dirname, '../../node_modules/@fontsource/noto-sans-kr/files'),
-  ];
-
-  for (const baseDir of baseDirs) {
-    if (!fs.existsSync(baseDir)) continue;
-    const files = fs.readdirSync(baseDir);
-    const preferred = files.find((file) => file.includes('korean') && file.includes('400-normal') && file.endsWith('.woff2'))
-      || files.find((file) => file.includes('korean') && file.endsWith('.woff2'))
-      || files.find((file) => file.endsWith('.woff2'));
-    if (preferred) return path.join(baseDir, preferred);
-  }
-
-  return null;
+function makeAttachment(svg, name) {
+  return new AttachmentBuilder(Buffer.from(svg, 'utf8'), { name });
 }
 
-function registerKoreanFont(GlobalFonts) {
-  if (fontReady || !GlobalFonts) return;
-
-  const dalmooriCandidates = [
-    path.resolve(__dirname, '../assets/fonts/dalmoori.ttf'),
-    path.resolve(__dirname, '../assets/fonts/Dalmoori.ttf'),
-    path.resolve(__dirname, '../assets/fonts/dalmoori.woff2'),
-    path.resolve(__dirname, '../assets/fonts/Dalmoori.woff2'),
-    path.resolve(process.cwd(), 'assets/fonts/dalmoori.ttf'),
-    path.resolve(process.cwd(), 'assets/fonts/Dalmoori.ttf'),
-    path.resolve(process.cwd(), 'assets/fonts/dalmoori.woff2'),
-    path.resolve(process.cwd(), 'assets/fonts/Dalmoori.woff2'),
-    path.resolve(process.cwd(), 'dalmoori.ttf'),
-    path.resolve(process.cwd(), 'Dalmoori.ttf'),
-    path.resolve(process.cwd(), 'dalmoori.woff2'),
-    path.resolve(process.cwd(), 'Dalmoori.woff2'),
-  ];
-
-  const dalmooriPath = findFirstExisting(dalmooriCandidates);
-  if (dalmooriPath) {
-    const ok = GlobalFonts.registerFromPath(dalmooriPath, 'dalmoori');
-    activeFontFamily = 'dalmoori';
-    console.log(ok ? `[FONT] dalmoori 한글 폰트 등록 완료: ${dalmooriPath}` : `[FONT] dalmoori 한글 폰트 등록 실패: ${dalmooriPath}`);
-    fontReady = true;
-    return;
-  }
-
-  const notoPath = findNotoSansKrFont();
-  if (notoPath) {
-    const ok = GlobalFonts.registerFromPath(notoPath, 'NotoSansKR');
-    activeFontFamily = 'NotoSansKR';
-    console.log(ok ? `[FONT] NotoSansKR 한글 폰트 등록 완료: ${notoPath}` : `[FONT] NotoSansKR 한글 폰트 등록 실패: ${notoPath}`);
-    fontReady = true;
-    return;
-  }
-
-  console.warn('[FONT] 한글 폰트를 찾지 못했습니다. npm install 후 재시작하거나 assets/fonts/dalmoori.ttf 를 업로드하세요.');
-  fontReady = true;
-}
-
-function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
-
-function setFont(ctx, size = 26) {
-  ctx.font = `${size}px ${fontStack()}`;
-}
-
-function text(ctx, value, x, y, size = 26, color = '#172033', strength = 1, maxWidth = undefined) {
-  setFont(ctx, size);
-  ctx.fillStyle = color;
-  const output = String(value);
-  ctx.fillText(output, x, y, maxWidth);
-
-  if (strength >= 2) ctx.fillText(output, x + 0.7, y, maxWidth);
-  if (strength >= 3) ctx.fillText(output, x, y + 0.7, maxWidth);
-}
-
-function drawBase(createCanvas, title, subtitle) {
-  const canvas = createCanvas(1200, 520);
-  const ctx = canvas.getContext('2d');
-
-  const bg = ctx.createLinearGradient(0, 0, 1200, 520);
-  bg.addColorStop(0, '#fbfeff');
-  bg.addColorStop(0.5, '#eef9ff');
-  bg.addColorStop(1, '#e6f5ff');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, 1200, 520);
-
-  ctx.fillStyle = 'rgba(255,255,255,0.95)';
-  roundRect(ctx, 28, 28, 1144, 464, 28);
-  ctx.fill();
-  ctx.strokeStyle = '#8bd5ff';
-  ctx.lineWidth = 3;
-  ctx.stroke();
-
-  ctx.fillStyle = '#eaf8ff';
-  roundRect(ctx, 54, 54, 1092, 142, 24);
-  ctx.fill();
-  ctx.strokeStyle = '#6ecbff';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  text(ctx, `◇ ${title}`, 82, 111, 34, '#102033', 3, 700);
-  text(ctx, subtitle, 82, 154, 22, '#557089', 2, 720);
-
-  return { canvas, ctx };
+function statBox({ x, label, value, sub, color }) {
+  return `
+  <rect x="${x}" y="235" width="320" height="200" rx="22" fill="#ffffff" stroke="#b9e7ff" stroke-width="2"/>
+  <circle cx="${x + 42}" cy="279" r="10" fill="${color}" opacity="0.9"/>
+  <text class="font label" x="${x + 64}" y="288">${escapeXml(label)}</text>
+  <text class="font" x="${x + 32}" y="354" font-size="42" font-weight="900" fill="${color}">${escapeXml(value)}</text>
+  <text class="font sub" x="${x + 32}" y="396">${escapeXml(sub)}</text>`;
 }
 
 export async function createPingCard({ clientPing, apiPing, guildCount, userTag }) {
-  const createCanvas = await loadCanvas();
-  const { canvas, ctx } = drawBase(createCanvas, '유키하 네트워크 상태', '현재 연결 상태와 응답 속도를 확인했어요');
+  const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false });
+  const body = [
+    statBox({ x: 70, label: '디스코드 핑', value: `${clientPing}ms`, sub: '웹소켓 연결', color: '#ff9f1a' }),
+    statBox({ x: 430, label: '응답 속도', value: `${apiPing}ms`, sub: '명령어 처리', color: '#00a878' }),
+    statBox({ x: 790, label: '서버 수', value: `${guildCount}`, sub: '연결된 서버', color: '#2374ff' }),
+  ].join('\n');
 
-  const now = new Date().toLocaleString('ko-KR');
-  text(ctx, userTag || 'YUKIHA', 930, 96, 20, '#61768a', 2, 190);
-  text(ctx, now, 795, 132, 22, '#00a6d6', 2, 330);
+  const svg = baseCard({
+    title: '유키하 네트워크 상태',
+    subtitle: '현재 연결 상태와 응답 속도를 확인했어요',
+    rightTop: userTag || 'YUKIHA',
+    rightBottom: now,
+    body,
+  });
 
-  const rows = [
-    { label: '디스코드 핑', value: `${clientPing}ms`, sub: '웹소켓 연결', color: '#ff9f1a' },
-    { label: '응답 속도', value: `${apiPing}ms`, sub: '명령어 처리', color: '#00a878' },
-    { label: '서버 수', value: `${guildCount}`, sub: '연결된 서버', color: '#2374ff' },
-  ];
-
-  for (let i = 0; i < rows.length; i += 1) {
-    const row = rows[i];
-    const x = 70 + i * 360;
-    ctx.fillStyle = '#ffffff';
-    roundRect(ctx, x, 235, 320, 200, 22);
-    ctx.fill();
-    ctx.strokeStyle = '#b9e7ff';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    text(ctx, row.label, x + 32, 288, 24, '#30445a', 3, 245);
-    text(ctx, row.value, x + 32, 354, 42, row.color, 3, 250);
-    text(ctx, row.sub, x + 32, 396, 22, '#70869a', 2, 245);
-  }
-
-  return new AttachmentBuilder(canvas.toBuffer('image/png'), { name: 'yukiha-ping.png' });
+  return makeAttachment(svg, 'yukiha-ping.svg');
 }
 
 export async function createWelcomeCard({ member, guild, title, description }) {
-  const createCanvas = await loadCanvas();
   const displayName = member?.displayName || member?.user?.username || '새로운 유저';
   const memberCount = guild?.memberCount || 0;
   const safeTitle = title || `어서 와요, ${displayName}님 ❄️`;
-  const safeDesc = description || `${guild.name}에 온 걸 환영해요. 유키하가 지켜보고 있을게요.`;
+  const safeDesc = description || `${guild?.name || '서버'}에 온 걸 환영해요. 유키하가 지켜보고 있을게요.`;
 
-  const { canvas, ctx } = drawBase(createCanvas, '유키하 환영 인사', '새로운 멤버가 서버에 도착했어요');
+  const body = `
+  <rect x="70" y="225" width="1060" height="210" rx="24" fill="#ffffff" stroke="#b9e7ff" stroke-width="2"/>
+  <text class="font" x="105" y="292" font-size="34" font-weight="900" fill="#102033">${escapeXml(trimText(safeTitle, 42))}</text>
+  <text class="font" x="105" y="346" font-size="24" font-weight="700" fill="#557089">${escapeXml(trimText(safeDesc, 66))}</text>
+  <text class="font" x="105" y="397" font-size="23" font-weight="800" fill="#00a6d6">닉네임: ${escapeXml(trimText(displayName, 24))}</text>
+  <text class="font" x="780" y="397" font-size="23" font-weight="800" fill="#00a878">서버 멤버: ${escapeXml(memberCount)}명</text>`;
 
-  ctx.fillStyle = '#ffffff';
-  roundRect(ctx, 70, 225, 1060, 210, 24);
-  ctx.fill();
-  ctx.strokeStyle = '#b9e7ff';
-  ctx.lineWidth = 2;
-  ctx.stroke();
+  const svg = baseCard({
+    title: '유키하 환영 인사',
+    subtitle: '새로운 멤버가 서버에 도착했어요',
+    body,
+  });
 
-  text(ctx, safeTitle, 105, 292, 34, '#102033', 3, 920);
-  text(ctx, safeDesc.slice(0, 70), 105, 346, 24, '#557089', 2, 920);
-  text(ctx, `닉네임: ${displayName}`, 105, 397, 23, '#00a6d6', 3, 520);
-  text(ctx, `서버 멤버: ${memberCount}명`, 780, 397, 23, '#00a878', 3, 300);
-
-  return new AttachmentBuilder(canvas.toBuffer('image/png'), { name: 'yukiha-welcome.png' });
+  return makeAttachment(svg, 'yukiha-welcome.svg');
 }
