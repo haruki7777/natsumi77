@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, MessageFlags } from 'discord.js';
 import { Ticket } from '../models.js';
 
 export const ticketManageCommand = {
@@ -25,6 +25,6 @@ export const ticketManageCommand = {
           : '현재 열린 티켓이 없어. 조용하네… 뭐, 좋은 거겠지?'
       );
 
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
   },
 };
