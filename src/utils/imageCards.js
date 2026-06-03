@@ -1,15 +1,6 @@
-function trimText(value, max = 80) {
+function trimText(value, max = 900) {
   const text = String(value ?? '');
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
-}
-
-function buildPlaceholdCardUrl({ title, line1, line2, line3, bg = 'eaf8ff', fg = '102033' }) {
-  const text = [title, line1, line2, line3]
-    .filter(Boolean)
-    .map((line) => trimText(line, 52))
-    .join('\n');
-
-  return `https://placehold.co/1200x520/${bg}/${fg}.png?font=montserrat&text=${encodeURIComponent(text)}`;
 }
 
 export function buildPingCardFields({ clientPing, apiPing, guildCount }) {
@@ -18,17 +9,6 @@ export function buildPingCardFields({ clientPing, apiPing, guildCount }) {
     { name: '🟢 응답 속도', value: `\`${apiPing}ms\``, inline: true },
     { name: '🔵 서버 수', value: `\`${guildCount}\``, inline: true },
   ];
-}
-
-export function buildPingCardUrl({ clientPing, apiPing, guildCount }) {
-  return buildPlaceholdCardUrl({
-    title: 'YUKIHA NETWORK STATUS',
-    line1: `Discord Ping  ${clientPing}ms`,
-    line2: `Response Speed  ${apiPing}ms`,
-    line3: `Connected Guilds  ${guildCount}`,
-    bg: 'eaf8ff',
-    fg: '102033',
-  });
 }
 
 export function buildWelcomeCardFields({ member, guild }) {
@@ -42,16 +22,13 @@ export function buildWelcomeCardFields({ member, guild }) {
   ];
 }
 
-export function buildWelcomeCardUrl({ member, guild, title, description }) {
-  const displayName = member?.displayName || member?.user?.username || 'New User';
-  const memberCount = guild?.memberCount || 0;
-
-  return buildPlaceholdCardUrl({
-    title: 'YUKIHA WELCOME CARD',
-    line1: trimText(title || `Welcome ${displayName}`, 48),
-    line2: trimText(description || `${displayName} joined ${guild?.name || 'the server'}`, 48),
-    line3: `Members  ${memberCount}`,
-    bg: 'ffeef6',
-    fg: '261421',
-  });
+export function buildWelcomeCardDescription({ cardText }) {
+  const safeText = trimText(cardText || '새로운 멤버가 서버에 도착했어요.', 900);
+  return [
+    '╭━━━━━━━━━━━━━━━━━━━━╮',
+    '　　🌸 **환영 카드** 🌸',
+    '╰━━━━━━━━━━━━━━━━━━━━╯',
+    '',
+    safeText,
+  ].join('\n');
 }
