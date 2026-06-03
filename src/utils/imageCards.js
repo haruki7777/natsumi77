@@ -1,30 +1,100 @@
 import { AttachmentBuilder } from 'discord.js';
 import { createCanvas, GlobalFonts } from '@napi-rs/canvas';
+import { access, mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 
 let fontReady = false;
+let fontPromise = null;
 
-function setupFonts() {
-  if (fontReady) return;
-  fontReady = true;
+const FONT_DIR = '/tmp/yukiha-fonts';
+const FONT_PATH = path.join(FONT_DIR, 'NotoSansKR.ttf');
+const FONT_URLS = [
+  'https://raw.githubusercontent.com/google/fonts/main/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf',
+  'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf',
+];
 
-  const candidates = [
-    '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
-    '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
-    '/usr/share/fonts/truetype/noto/NotoSansKR-Regular.otf',
-    '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
-  ];
+async function fileExists(filePath) {
+  try {
+    await access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
-  for (const path of candidates) {
+async function downloadFont() {
+  await mkdir(FONT_DIR, { recursive: true });
+
+  if (await fileExists(FONT_PATH)) return FONT_PATH;
+
+  for (const url of FONT_URLS) {
     try {
-      GlobalFonts.registerFromPath(path, 'YukihaKR');
-      console.log(`[CARDS] font loaded: ${path}`);
-      return;
-    } catch {
-      // Ignore missing fonts. Canvas will use its fallback font.
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 12_000);
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
+
+      if (!response.ok) continue;
+
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      if (buffer.length < 100_000) continue;
+
+      await writeFile(FONT_PATH, buffer);
+      console.log(`[CARDS] Korean font downloaded: ${FONT_PATH}`);
+      return FONT_PATH;
+    } catch (error) {
+      console.warn('[CARDS] font download failed:', error?.message || error);
     }
   }
 
-  console.warn('[CARDS] Korean font file was not found. Fallback font will be used.');
+  return null;
+}
+
+async function setupFonts() {
+  if (fontReady) return;
+  if (fontPromise) return fontPromise;
+
+  fontPromise = (async () => {
+    const candidates = [
+      process.env.CARD_FONT_PATH,
+      FONT_PATH,
+      '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
+      '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
+      '/usr/share/fonts/truetype/noto/NotoSansKR-Regular.otf',
+      '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+    ].filter(Boolean);
+
+    for (const candidate of candidates) {
+      try {
+        if (!(await fileExists(candidate))) continue;
+        GlobalFonts.registerFromPath(candidate, 'YukihaKR');
+        console.log(`[CARDS] font loaded: ${candidate}`);
+        fontReady = true;
+        return;
+      } catch (error) {
+        console.warn(`[CARDS] font load failed: ${candidate}`, error?.message || error);
+      }
+    }
+
+    const downloaded = await downloadFont();
+    if (downloaded) {
+      try {
+        GlobalFonts.registerFromPath(downloaded, 'YukihaKR');
+        console.log(`[CARDS] downloaded font loaded: ${downloaded}`);
+        fontReady = true;
+        return;
+      } catch (error) {
+        console.warn('[CARDS] downloaded font load failed:', error?.message || error);
+      }
+    }
+
+    fontReady = true;
+    console.warn('[CARDS] Korean font was not loaded. Fallback font will be used.');
+  })();
+
+  return fontPromise;
 }
 
 function trimText(value, max = 900) {
@@ -126,7 +196,7 @@ export function buildWelcomeCardDescription({ cardText }) {
 }
 
 export async function createPingCard({ clientPing, apiPing, guildCount, userTag }) {
-  setupFonts();
+  await setupFonts();
 
   const canvas = createCanvas(900, 360);
   const ctx = canvas.getContext('2d');
@@ -169,7 +239,7 @@ export async function createPingCard({ clientPing, apiPing, guildCount, userTag 
 }
 
 export async function createWelcomeCard({ member, guild, cardText }) {
-  setupFonts();
+  await setupFonts();
 
   const displayName = member?.displayName || member?.user?.username || '새로운 유저';
   const memberCount = guild?.memberCount || 0;
