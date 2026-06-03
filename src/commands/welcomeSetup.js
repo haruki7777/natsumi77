@@ -1,4 +1,4 @@
-import { ChannelType, EmbedBuilder, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import { ChannelType, EmbedBuilder, MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
 import { GuildSettings } from '../models.js';
 
 const MENTION_LABELS = {
@@ -109,7 +109,7 @@ export const welcomeSetupCommand = {
     const embed = new EmbedBuilder()
       .setColor(0x9ddcff)
       .setTitle('❄️ 환영 설정 완료')
-      .setDescription('새 멤버가 들어오면 한글이 깨지지 않는 경량 임베드 카드로 보낼게.')
+      .setDescription('새 멤버가 들어오면 한글 환영 카드로 보낼게.')
       .addFields(
         { name: '채널', value: `${channel}`, inline: true },
         { name: '자동역할', value: saved.welcomeRoleId ? `<@&${saved.welcomeRoleId}>` : '없음', inline: true },
@@ -122,6 +122,6 @@ export const welcomeSetupCommand = {
       .setFooter({ text: '테스트는 /환영인사테스트 로 확인해줘' })
       .setTimestamp();
 
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
   },
 };
