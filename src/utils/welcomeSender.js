@@ -1,6 +1,6 @@
 import { EmbedBuilder } from 'discord.js';
 import { GuildSettings } from '../models.js';
-import { buildWelcomeCardFields } from './imageCards.js';
+import { buildWelcomeCardFields, buildWelcomeCardUrl } from './imageCards.js';
 import { applyPlaceholders } from './placeholders.js';
 
 export async function sendWelcome(member, options = {}) {
@@ -18,12 +18,14 @@ export async function sendWelcome(member, options = {}) {
 
   const title = applyPlaceholders(settings.welcomeTitle, member, member.guild);
   const description = applyPlaceholders(settings.welcomeDescription, member, member.guild);
+  const cardUrl = buildWelcomeCardUrl({ member, guild: member.guild, title, description });
 
   const embed = new EmbedBuilder()
     .setColor(0x9ddcff)
     .setTitle(title)
     .setDescription(description)
     .addFields(buildWelcomeCardFields({ member, guild: member.guild }))
+    .setImage(cardUrl)
     .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
     .setFooter({ text: 'YUKIHA Welcome System ❄️' })
     .setTimestamp();
