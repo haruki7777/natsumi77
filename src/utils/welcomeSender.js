@@ -36,7 +36,10 @@ export async function sendWelcome(member, options = {}) {
   const description = applyPlaceholders(settings.welcomeDescription, member, member.guild);
   const cardText = applyPlaceholders(settings.welcomeCardText, member, member.guild);
   const mention = buildWelcomeMention(settings, member);
-  const card = await createWelcomeCard({ member, guild: member.guild, cardText });
+  const card = await createWelcomeCard({ member, guild: member.guild, cardText }).catch((error) => {
+    console.warn('[WELCOME] Canvas card creation failed:', error?.message || error);
+    return null;
+  });
 
   const embed = new EmbedBuilder()
     .setColor(0x9ddcff)
@@ -46,21 +49,26 @@ export async function sendWelcome(member, options = {}) {
       { name: '💬 안내', value: description.slice(0, 1000), inline: false },
       ...buildWelcomeCardFields({ member, guild: member.guild })
     )
-    .setImage('attachment://yukiha-welcome.png')
     .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
-    .setFooter({ text: 'YUKIHA Welcome System ❄️ · Optimized Canvas Card' })
+    .setFooter({ text: card ? 'YUKIHA Welcome System ❄️ · Korean Canvas Card' : 'YUKIHA Welcome System ❄️ · Font fallback mode' })
     .setTimestamp();
 
-  await channel.send({
+  const payload = {
     content: mention || undefined,
     embeds: [embed],
-    files: [card],
     allowedMentions: {
       parse: mention === '@everyone' ? ['everyone'] : mention === '@here' ? ['everyone'] : [],
       users: settings.welcomeMentionMode === 'member' ? [member.id] : settings.welcomeMentionTargetType === 'user' ? [settings.welcomeMentionTargetId] : [],
       roles: settings.welcomeMentionTargetType === 'role' ? [settings.welcomeMentionTargetId] : [],
     },
-  });
+  };
+
+  if (card) {
+    embed.setImage('attachment://yukiha-welcome.png');
+    payload.files = [card];
+  }
+
+  await channel.send(payload);
   return { ok: true };
 }
 
