@@ -77,6 +77,12 @@ export const botPowerCommand = {
           { name: '재시작', value: 'restart' },
           { name: '강제 종료', value: 'kill' }
         )
+    )
+    .addStringOption((option) =>
+      option
+        .setName('확인')
+        .setDescription('강제 종료를 쓸 때만 강제종료 라고 입력')
+        .setRequired(false)
     ),
 
   async execute(interaction) {
@@ -102,7 +108,7 @@ export const botPowerCommand = {
     if (action === 'kill') {
       const confirm = interaction.options.getString('확인') || '';
       if (confirm !== '강제종료') {
-        await interaction.editReply('강제 종료는 위험해서 막아뒀어. 지금 커맨드 옵션에는 확인값이 없으니 가능하면 `정지`나 `재시작`을 써줘.');
+        await interaction.editReply('강제 종료는 위험해. 정말 필요할 때만 `확인` 옵션에 `강제종료`라고 적어줘. 보통은 `정지`나 `재시작`이면 충분해 😤');
         return;
       }
     }
