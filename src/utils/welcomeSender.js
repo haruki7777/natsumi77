@@ -1,7 +1,23 @@
 import { EmbedBuilder } from 'discord.js';
 import { GuildSettings } from '../models.js';
-import { buildWelcomeCardFields, buildWelcomeCardUrl } from './imageCards.js';
+import { buildWelcomeCardDescription, buildWelcomeCardFields } from './imageCards.js';
 import { applyPlaceholders } from './placeholders.js';
+
+function buildWelcomeMention(settings, member) {
+  const mode = settings?.welcomeMentionMode || 'member';
+
+  if (mode === 'none') return null;
+  if (mode === 'member') return `${member.user}`;
+  if (mode === 'everyone') return '@everyone';
+  if (mode === 'here') return '@here';
+
+  if (mode === 'target' && settings.welcomeMentionTargetId) {
+    if (settings.welcomeMentionTargetType === 'role') return `<@&${settings.welcomeMentionTargetId}>`;
+    if (settings.welcomeMentionTargetType === 'user') return `<@${settings.welcomeMentionTargetId}>`;
+  }
+
+  return null;
+}
 
 export async function sendWelcome(member, options = {}) {
   const settings = await GuildSettings.findOne({ guildId: member.guild.id });
@@ -18,19 +34,30 @@ export async function sendWelcome(member, options = {}) {
 
   const title = applyPlaceholders(settings.welcomeTitle, member, member.guild);
   const description = applyPlaceholders(settings.welcomeDescription, member, member.guild);
-  const cardUrl = buildWelcomeCardUrl({ member, guild: member.guild, title, description });
+  const cardText = applyPlaceholders(settings.welcomeCardText, member, member.guild);
+  const mention = buildWelcomeMention(settings, member);
 
   const embed = new EmbedBuilder()
     .setColor(0x9ddcff)
     .setTitle(title)
-    .setDescription(description)
-    .addFields(buildWelcomeCardFields({ member, guild: member.guild }))
-    .setImage(cardUrl)
+    .setDescription(buildWelcomeCardDescription({ cardText }))
+    .addFields(
+      { name: '💬 안내', value: description.slice(0, 1000), inline: false },
+      ...buildWelcomeCardFields({ member, guild: member.guild })
+    )
     .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
-    .setFooter({ text: 'YUKIHA Welcome System ❄️' })
+    .setFooter({ text: 'YUKIHA Welcome System ❄️ · Lightweight Korean Card' })
     .setTimestamp();
 
-  await channel.send({ embeds: [embed] });
+  await channel.send({
+    content: mention || undefined,
+    embeds: [embed],
+    allowedMentions: {
+      parse: mention === '@everyone' ? ['everyone'] : mention === '@here' ? ['everyone'] : [],
+      users: settings.welcomeMentionMode === 'member' ? [member.id] : settings.welcomeMentionTargetType === 'user' ? [settings.welcomeMentionTargetId] : [],
+      roles: settings.welcomeMentionTargetType === 'role' ? [settings.welcomeMentionTargetId] : [],
+    },
+  });
   return { ok: true };
 }
 
