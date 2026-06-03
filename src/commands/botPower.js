@@ -1,4 +1,4 @@
-import { EmbedBuilder, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import { EmbedBuilder, MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
 import { getPowerTargets, getPterodactylState, sendPterodactylPowerSignal } from '../utils/pterodactylPower.js';
 
 const ACTION_LABELS = {
@@ -86,7 +86,7 @@ export const botPowerCommand = {
     ),
 
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const targetKey = interaction.options.getString('대상', true);
     const action = interaction.options.getString('작업', true);
