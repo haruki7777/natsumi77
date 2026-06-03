@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
+import { MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
 import { sendWelcome } from '../utils/welcomeSender.js';
 
 export const welcomeTestCommand = {
@@ -8,7 +8,7 @@ export const welcomeTestCommand = {
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const result = await sendWelcome(interaction.member, { skipRole: true });
 
     if (!result.ok) {
