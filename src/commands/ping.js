@@ -1,5 +1,5 @@
 import { EmbedBuilder, SlashCommandBuilder } from 'discord.js';
-import { buildPingCardFields, buildPingCardUrl } from '../utils/imageCards.js';
+import { buildPingCardFields } from '../utils/imageCards.js';
 
 export const pingCommand = {
   data: new SlashCommandBuilder()
@@ -13,14 +13,18 @@ export const pingCommand = {
     const apiPing = Date.now() - startedAt;
     const clientPing = Math.max(0, Math.round(interaction.client.ws.ping));
     const guildCount = interaction.client.guilds.cache.size;
-    const cardUrl = buildPingCardUrl({ clientPing, apiPing, guildCount });
 
     const embed = new EmbedBuilder()
       .setColor(0x9ddcff)
       .setTitle('❄️ 유키하 네트워크 상태')
-      .setDescription('카드 이미지와 수치를 같이 표시해요.')
+      .setDescription([
+        '╭━━━━━━━━━━━━━━━━━━━━╮',
+        '　　💠 **핑 상태 카드** 💠',
+        '╰━━━━━━━━━━━━━━━━━━━━╯',
+        '',
+        '이미지 생성 없이 가벼운 임베드 카드로 안정적으로 표시해요.',
+      ].join('\n'))
       .addFields(buildPingCardFields({ clientPing, apiPing, guildCount }))
-      .setImage(cardUrl)
       .setFooter({ text: `요청자: ${interaction.user.tag}` })
       .setTimestamp();
 
