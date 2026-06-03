@@ -1,4 +1,4 @@
-import { EmbedBuilder, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import { EmbedBuilder, MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
 import { createModEmbed, sendModLog } from '../utils/modLog.js';
 
 export const kickCommand = {
@@ -19,11 +19,11 @@ export const kickCommand = {
     const member = await interaction.guild.members.fetch(user.id).catch(() => null);
 
     if (!member) {
-      return interaction.reply({ content: '그 유저를 서버에서 찾지 못했어.', ephemeral: true });
+      return interaction.reply({ content: '그 유저를 서버에서 찾지 못했어.', flags: MessageFlags.Ephemeral });
     }
 
     if (!member.kickable) {
-      return interaction.reply({ content: '그 유저는 유키하가 추방할 수 없어. 역할 순서나 권한을 확인해줘 😤', ephemeral: true });
+      return interaction.reply({ content: '그 유저는 유키하가 추방할 수 없어. 역할 순서나 권한을 확인해줘 😤', flags: MessageFlags.Ephemeral });
     }
 
     await member.kick(`YUKIHA Kick | ${interaction.user.tag}: ${reason}`);
@@ -46,7 +46,7 @@ export const kickCommand = {
           .addFields({ name: '사유', value: reason })
           .setTimestamp(),
       ],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   },
 };
