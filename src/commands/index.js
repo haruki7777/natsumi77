@@ -10,6 +10,7 @@ import { adminSetupCommand } from './adminSetup.js';
 import { kickCommand } from './kick.js';
 import { banCommand } from './ban.js';
 import { syncCommandsCommand } from './syncCommands.js';
+import { botPowerCommand } from './botPower.js';
 
 const list = [];
 list.push(ticketSetupCommand);
@@ -24,5 +25,6 @@ list.push(adminSetupCommand);
 list.push(kickCommand);
 list.push(banCommand);
 list.push(syncCommandsCommand);
+list.push(botPowerCommand);
 
 export const commands = list;
