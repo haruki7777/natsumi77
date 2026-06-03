@@ -3,6 +3,15 @@ function trimText(value, max = 900) {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
+function buildCardUrl({ title, lines, bg = 'fff4fb', fg = '211826' }) {
+  const text = [title, ...lines]
+    .filter(Boolean)
+    .map((line) => trimText(line, 42))
+    .join('\n');
+
+  return `https://placehold.co/1200x520/${bg}/${fg}.png?font=noto-sans&text=${encodeURIComponent(text)}`;
+}
+
 export function buildPingCardFields({ clientPing, apiPing, guildCount }) {
   return [
     { name: '🟡 디스코드 핑', value: `\`${clientPing}ms\``, inline: true },
@@ -31,4 +40,17 @@ export function buildWelcomeCardDescription({ cardText }) {
     '',
     safeText,
   ].join('\n');
+}
+
+export function buildWelcomeImageCardUrl({ member, guild, cardText }) {
+  const displayName = member?.displayName || member?.user?.username || '새로운 유저';
+  const memberCount = guild?.memberCount || 0;
+  const safeCardText = trimText(cardText || `${displayName}님 환영해요!`, 42);
+
+  return buildCardUrl({
+    title: '🌸 유키하 환영 카드 🌸',
+    lines: [safeCardText, `닉네임: ${displayName}`, `현재 멤버 수: ${memberCount}명`],
+    bg: 'fff4fb',
+    fg: '211826',
+  });
 }
