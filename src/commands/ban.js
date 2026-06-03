@@ -1,4 +1,4 @@
-import { EmbedBuilder, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import { EmbedBuilder, MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
 import { createModEmbed, sendModLog } from '../utils/modLog.js';
 
 export const banCommand = {
@@ -28,7 +28,7 @@ export const banCommand = {
     const member = await interaction.guild.members.fetch(user.id).catch(() => null);
 
     if (member && !member.bannable) {
-      return interaction.reply({ content: '그 유저는 유키하가 밴할 수 없어. 역할 순서나 권한을 확인해줘 😤', ephemeral: true });
+      return interaction.reply({ content: '그 유저는 유키하가 밴할 수 없어. 역할 순서나 권한을 확인해줘 😤', flags: MessageFlags.Ephemeral });
     }
 
     await interaction.guild.members.ban(user.id, {
@@ -57,7 +57,7 @@ export const banCommand = {
           )
           .setTimestamp(),
       ],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   },
 };
