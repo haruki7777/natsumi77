@@ -1,6 +1,6 @@
 import { EmbedBuilder } from 'discord.js';
 import { GuildSettings } from '../models.js';
-import { buildWelcomeCardDescription, buildWelcomeCardFields, buildWelcomeImageCardUrl } from './imageCards.js';
+import { buildWelcomeCardDescription, buildWelcomeCardFields, createWelcomeCard } from './imageCards.js';
 import { applyPlaceholders } from './placeholders.js';
 
 function buildWelcomeMention(settings, member) {
@@ -36,7 +36,7 @@ export async function sendWelcome(member, options = {}) {
   const description = applyPlaceholders(settings.welcomeDescription, member, member.guild);
   const cardText = applyPlaceholders(settings.welcomeCardText, member, member.guild);
   const mention = buildWelcomeMention(settings, member);
-  const imageCardUrl = buildWelcomeImageCardUrl({ member, guild: member.guild, cardText });
+  const card = await createWelcomeCard({ member, guild: member.guild, cardText });
 
   const embed = new EmbedBuilder()
     .setColor(0x9ddcff)
@@ -46,14 +46,15 @@ export async function sendWelcome(member, options = {}) {
       { name: '💬 안내', value: description.slice(0, 1000), inline: false },
       ...buildWelcomeCardFields({ member, guild: member.guild })
     )
-    .setImage(imageCardUrl)
+    .setImage('attachment://yukiha-welcome.png')
     .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
-    .setFooter({ text: 'YUKIHA Welcome System ❄️ · Korean Card Mode' })
+    .setFooter({ text: 'YUKIHA Welcome System ❄️ · Optimized Canvas Card' })
     .setTimestamp();
 
   await channel.send({
     content: mention || undefined,
     embeds: [embed],
+    files: [card],
     allowedMentions: {
       parse: mention === '@everyone' ? ['everyone'] : mention === '@here' ? ['everyone'] : [],
       users: settings.welcomeMentionMode === 'member' ? [member.id] : settings.welcomeMentionTargetType === 'user' ? [settings.welcomeMentionTargetId] : [],
