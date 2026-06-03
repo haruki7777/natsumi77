@@ -30,6 +30,17 @@ const guildSettingsSchema = new mongoose.Schema(
       type: String,
       default: '유키하가 {server} 입장을 환영해요. 규칙을 확인하고 즐겁게 지내줘요.',
     },
+    welcomeCardText: {
+      type: String,
+      default: '새로 온 {user}님, {server}에 온 걸 환영해요. 현재 멤버 수는 {memberCount}명이에요.',
+    },
+    welcomeMentionMode: {
+      type: String,
+      enum: ['none', 'member', 'target', 'everyone', 'here'],
+      default: 'member',
+    },
+    welcomeMentionTargetId: { type: String, default: null },
+    welcomeMentionTargetType: { type: String, enum: ['role', 'user', null], default: null },
     goodbyeChannelId: String,
     goodbyeMessage: { type: String, default: '{user}님이 서버를 떠났어요.' },
     modLogChannelId: String,
