@@ -41,6 +41,7 @@ const guildSettingsSchema = new mongoose.Schema(
     },
     welcomeMentionTargetId: { type: String, default: null },
     welcomeMentionTargetType: { type: String, enum: ['role', 'user', null], default: null },
+    welcomeCleanupOnLeave: { type: Boolean, default: true },
     goodbyeChannelId: String,
     goodbyeMessage: { type: String, default: '{user}님이 서버를 떠났어요.' },
     modLogChannelId: String,
@@ -48,5 +49,19 @@ const guildSettingsSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+const welcomeMessageSchema = new mongoose.Schema(
+  {
+    guildId: { type: String, required: true, index: true },
+    userId: { type: String, required: true, index: true },
+    channelId: { type: String, required: true },
+    messageId: { type: String, required: true },
+    deletedAt: { type: Date, default: null },
+  },
+  { timestamps: true }
+);
+
+welcomeMessageSchema.index({ guildId: 1, userId: 1, deletedAt: 1 });
+
 export const Ticket = mongoose.model('Ticket', ticketSchema);
 export const GuildSettings = mongoose.model('GuildSettings', guildSettingsSchema);
+export const WelcomeMessage = mongoose.model('WelcomeMessage', welcomeMessageSchema);
