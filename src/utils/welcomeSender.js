@@ -1,5 +1,5 @@
 import { EmbedBuilder } from 'discord.js';
-import { GuildSettings } from '../models.js';
+import { GuildSettings, WelcomeMessage } from '../models.js';
 import { buildWelcomeCardDescription, buildWelcomeCardFields, createWelcomeCard } from './imageCards.js';
 import { applyPlaceholders } from './placeholders.js';
 
@@ -68,8 +68,55 @@ export async function sendWelcome(member, options = {}) {
     payload.files = [card];
   }
 
-  await channel.send(payload);
-  return { ok: true };
+  const sent = await channel.send(payload);
+
+  if (!options.skipRole && settings.welcomeCleanupOnLeave !== false) {
+    await WelcomeMessage.create({
+      guildId: member.guild.id,
+      userId: member.id,
+      channelId: sent.channelId,
+      messageId: sent.id,
+    }).catch((error) => console.warn('[WELCOME] 환영 메시지 기록 실패:', error?.message || error));
+  }
+
+  return { ok: true, messageId: sent.id, channelId: sent.channelId };
+}
+
+export async function cleanupWelcomeMessage(member) {
+  const settings = await GuildSettings.findOne({ guildId: member.guild.id });
+  if (settings?.welcomeCleanupOnLeave === false) return { ok: false, reason: 'cleanup_disabled' };
+
+  const records = await WelcomeMessage.find({
+    guildId: member.guild.id,
+    userId: member.id,
+    deletedAt: null,
+  }).sort({ createdAt: -1 }).limit(5);
+
+  if (!records.length) return { ok: false, reason: 'welcome_message_not_found' };
+
+  let deleted = 0;
+
+  for (const record of records) {
+    const channel = await member.guild.channels.fetch(record.channelId).catch(() => null);
+    if (!channel?.isTextBased()) {
+      record.deletedAt = new Date();
+      await record.save().catch(() => null);
+      continue;
+    }
+
+    const message = await channel.messages.fetch(record.messageId).catch(() => null);
+    if (message) {
+      await message.delete().catch((error) => {
+        console.warn('[WELCOME] 환영 메시지 삭제 실패:', error?.message || error);
+      });
+      deleted += 1;
+    }
+
+    record.deletedAt = new Date();
+    await record.save().catch(() => null);
+  }
+
+  return { ok: deleted > 0, deleted };
 }
 
 export async function sendGoodbye(member) {
